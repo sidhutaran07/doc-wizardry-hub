@@ -23,7 +23,10 @@ const tools = [
       "Preserve image quality",
       "Custom page layouts"
     ],
-    highlighted: true
+    highlighted: true,
+    endpoint: "image-to-pdf",
+    acceptedFiles: ".jpg,.jpeg,.png,.gif,.bmp,.webp",
+    multipleFiles: true,
   },
   {
     icon: Minimize2,
@@ -34,7 +37,10 @@ const tools = [
       "Multiple compression levels",
       "Batch processing",
       "Original quality preserved"
-    ]
+    ],
+    endpoint: "compress-pdf",
+    acceptedFiles: ".pdf",
+    multipleFiles: false,
   },
   {
     icon: Scissors,
@@ -45,7 +51,10 @@ const tools = [
       "Split by page count",
       "Preview before splitting",
       "Bulk page extraction"
-    ]
+    ],
+    endpoint: "split-pdf",
+    acceptedFiles: ".pdf",
+    multipleFiles: false,
   },
   {
     icon: Merge,
@@ -56,7 +65,10 @@ const tools = [
       "Unlimited file merging",
       "Custom page insertion",
       "Bookmark preservation"
-    ]
+    ],
+    endpoint: "merge-pdf",
+    acceptedFiles: ".pdf",
+    multipleFiles: true,
   },
   {
     icon: FileText,
@@ -149,6 +161,9 @@ const ToolsGrid = () => {
               description={tool.description}
               features={tool.features}
               highlighted={tool.highlighted}
+              endpoint={tool.endpoint}
+              acceptedFiles={tool.acceptedFiles}
+              multipleFiles={tool.multipleFiles}
             />
           ))}
         </div>
