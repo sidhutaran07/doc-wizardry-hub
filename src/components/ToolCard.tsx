@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { FileUpload } from "@/components/FileUpload";
 import { LucideIcon, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { callEdgeFunction } from "@/lib/supabase";
 
 interface ToolCardProps {
   icon: LucideIcon;
@@ -45,14 +46,10 @@ const ToolCard = ({
         formData.append('file', files[0]);
       }
 
-      const response = await fetch(`/functions/v1/${endpoint}`, {
-        method: 'POST',
-        body: formData,
-      });
-
+      const response = await callEdgeFunction(endpoint, formData);
       const data = await response.json();
       
-      if (response.ok) {
+      if (response.ok && data.success) {
         setResult(data);
         toast({
           title: "Success!",
@@ -65,7 +62,7 @@ const ToolCard = ({
       console.error('Processing error:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : 'Processing failed',
+        description: error instanceof Error ? error.message : 'Processing failed. Please check your connection and try again.',
         variant: "destructive",
       });
     } finally {
@@ -76,10 +73,16 @@ const ToolCard = ({
   const handleDownload = (url: string, filename?: string) => {
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename || 'download';
+    link.download = filename || 'processed-file.pdf';
+    link.target = '_blank';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    // Clean up object URL to prevent memory leaks
+    if (url.startsWith('blob:')) {
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
   };
   return (
     <Card className={`
