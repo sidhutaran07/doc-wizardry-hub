@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { FileText, Zap, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -27,8 +28,16 @@ const Hero = () => {
             <FileText className="w-5 h-5" />
             Try Tools Now
           </Button>
-          <Button variant="outline" size="lg" className="min-w-[200px] bg-white/10 border-white/30 text-white hover:bg-white/20">
-            Learn More
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="min-w-[200px] bg-white/10 border-white/30 text-white hover:bg-white/20"
+            asChild
+          >
+            <Link to="/pdf-editor">
+              <FileText className="w-5 h-5" />
+              PDF Editor
+            </Link>
           </Button>
         </div>
         
