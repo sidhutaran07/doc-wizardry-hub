@@ -50,19 +50,31 @@ export const PDFViewer = ({ file, onClose }: PDFViewerProps) => {
   useEffect(() => {
     if (!canvasRef.current) return
 
-    const canvas = new FabricCanvas(canvasRef.current, {
-      width: 600,
-      height: 800,
-      isDrawingMode: false,
-    })
+    try {
+      const canvas = new FabricCanvas(canvasRef.current, {
+        width: 600,
+        height: 800,
+        isDrawingMode: false,
+      })
 
-    canvas.freeDrawingBrush.color = activeColor
-    canvas.freeDrawingBrush.width = 2
+      // Initialize the freeDrawingBrush safely
+      if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.color = activeColor
+        canvas.freeDrawingBrush.width = 2
+      }
 
-    setFabricCanvas(canvas)
+      setFabricCanvas(canvas)
 
-    return () => {
-      canvas.dispose()
+      return () => {
+        canvas.dispose()
+      }
+    } catch (error) {
+      console.error('Error initializing Fabric.js canvas:', error)
+      toast({
+        title: "Canvas Error",
+        description: "Failed to initialize annotation tools",
+        variant: "destructive"
+      })
     }
   }, [])
 
@@ -159,11 +171,28 @@ export const PDFViewer = ({ file, onClose }: PDFViewerProps) => {
   const loadPageAnnotations = () => {
     if (!fabricCanvas || !annotations[currentPage]) return
     
-    fabricCanvas.clear()
-    annotations[currentPage].forEach(objData => {
-      fabricCanvas.add(objData)
-    })
-    fabricCanvas.renderAll()
+    try {
+      fabricCanvas.clear()
+      annotations[currentPage].forEach(objData => {
+        // Safely recreate objects from saved data
+        if (objData.type === 'i-text') {
+          const text = new IText(objData.text || 'Text', objData)
+          fabricCanvas.add(text)
+        } else if (objData.type === 'rect') {
+          const rect = new Rect(objData)
+          fabricCanvas.add(rect)
+        } else if (objData.type === 'circle') {
+          const circle = new Circle(objData)
+          fabricCanvas.add(circle)
+        } else if (objData.type === 'path') {
+          const path = new Path(objData.path, objData)
+          fabricCanvas.add(path)
+        }
+      })
+      fabricCanvas.renderAll()
+    } catch (error) {
+      console.error('Error loading annotations:', error)
+    }
   }
 
   const handleClearAnnotations = () => {

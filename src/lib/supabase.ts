@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Get Supabase URL and anon key from environment or use placeholder
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
+// Get Supabase URL and anon key from environment or use safe defaults
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key'
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -12,12 +12,21 @@ export const callEdgeFunction = async (
   formData: FormData,
   authRequired = false
 ) => {
+  // Check if Supabase is properly configured
+  if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
+    throw new Error('Supabase is not configured. Please set up your Supabase connection in the project settings.')
+  }
+
   const headers: Record<string, string> = {}
   
   if (authRequired) {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`
+      }
+    } catch (error) {
+      console.warn('Auth session error:', error)
     }
   }
 

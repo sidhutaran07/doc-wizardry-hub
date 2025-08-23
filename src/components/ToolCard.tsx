@@ -60,11 +60,22 @@ const ToolCard = ({
       }
     } catch (error) {
       console.error('Processing error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Processing failed. Please check your connection and try again.',
-        variant: "destructive",
-      });
+      const errorMessage = error instanceof Error ? error.message : 'Processing failed. Please check your connection and try again.';
+      
+      // Show specific message for Supabase configuration issues
+      if (errorMessage.includes('Supabase is not configured')) {
+        toast({
+          title: "Setup Required",
+          description: "Please configure your Supabase connection to use PDF tools. Click the Supabase button in the top right to get started.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsProcessing(false);
     }
