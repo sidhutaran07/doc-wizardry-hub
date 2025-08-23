@@ -1,45 +1,44 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 
-// Get Supabase URL and anon key from environment or use safe defaults
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key'
+// Re-export supabase client for app-wide use
+export const supabase = supabaseClient;
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+// Supabase project URL and anon key (public)
+const supabaseUrl = "https://glpwshjvtofkxcmsiuts.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscHdzaGp2dG9ma3hjbXNpdXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5MzQxMDksImV4cCI6MjA3MTUxMDEwOX0.xNwgxeVtjuGZtpT2Emnlzapm4gMDO5gOXE6vUjBvw6g";
 
 // Helper function to call edge functions
 export const callEdgeFunction = async (
-  functionName: string, 
+  functionName: string,
   formData: FormData,
   authRequired = false
 ) => {
-  // Check if Supabase is properly configured
-  if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-    throw new Error('Supabase is not configured. Please set up your Supabase connection in the project settings.')
-  }
+  const headers: Record<string, string> = {
+    apikey: supabaseAnonKey,
+  };
 
-  const headers: Record<string, string> = {}
-  
-  if (authRequired) {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`
-      }
-    } catch (error) {
-      console.warn('Auth session error:', error)
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (authRequired && session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    } else if (!authRequired) {
+      // Provide anon bearer to satisfy Edge Function auth when verify_jwt is enabled
+      headers.Authorization = `Bearer ${supabaseAnonKey}`;
     }
+  } catch (error) {
+    console.warn("Auth session error:", error);
   }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
-    method: 'POST',
+    method: "POST",
     headers,
     body: formData,
-  })
+  });
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Function call failed: ${errorText}`)
+    const errorText = await response.text();
+    throw new Error(`Function call failed: ${errorText}`);
   }
 
-  return response
-}
+  return response;
+};
