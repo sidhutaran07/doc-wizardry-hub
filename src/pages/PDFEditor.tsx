@@ -132,4 +132,89 @@ const PDFEditor = () => {
         </div>
 
         {/* Main Editor Area */}
-        <Card className="max-w-4
+        <Card className="max-w-4xl mx-auto">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              PDF Editor
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            {!selectedFile ? (
+              <div className="space-y-6">
+                <FileUpload accept=".pdf,application/pdf" multiple={false} onFilesSelected={handleFilesSelected}>
+                  Drop your PDF file here or click to browse
+                </FileUpload>
+
+                <div className="text-center">
+                  <p className="text-muted-foreground">Upload a PDF file to start viewing and editing</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                  <div>
+                    <h3 className="font-semibold break-all">{selectedFile.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {/* Fully controlled dialog (no DialogTrigger) */}
+                    <Button onClick={openViewer}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Open Editor
+                    </Button>
+
+                    <Button variant="outline" onClick={clearFile}>
+                      Remove File
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Editor Features:</h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <li>• Add text annotations and comments</li>
+                    <li>• Draw shapes (rectangles, circles)</li>
+                    <li>• Free-hand drawing with pen tool</li>
+                    <li>• Zoom and rotate pages</li>
+                    <li>• Navigate between pages</li>
+                    <li>• Download edited PDF</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Controlled Dialog lives at root so it mounts once */}
+        <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
+          <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>PDF Editor {selectedFile ? `- ${selectedFile.name}` : ''}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden">
+              {/* Pass the blob URL, not the File */}
+              {blobUrl ? (
+                <PDFViewer
+                  url={blobUrl}
+                  onClose={() => setIsViewerOpen(false)}
+                  // pass any other props your viewer expects
+                />
+              ) : (
+                <div className="h-full grid place-items-center text-muted-foreground">
+                  No PDF loaded
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+};
+
+export default PDFEditor;
