@@ -1,78 +1,86 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    // use SERVICE_ROLE if your storage policy requires it
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+  );
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    )
-
-    const formData = await req.formData()
-    const files = formData.getAll('files') as File[]
-
-    if (!files || files.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No images provided' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    const formData = await req.formData();
+    const files = formData.getAll("files") as File[];
+    if (!files.length) {
+      return new Response(JSON.stringify({ error: "No files" }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      });
     }
 
-    // In a real implementation, you'd use a library like pdf-lib to create PDF from images
-    // For now, we'll simulate by creating a simple response
-    const pdfFileName = `converted_${Date.now()}.pdf`
-    
-    // Simulate PDF creation by using the first image (in real app, convert all images to PDF)
-    const firstFile = files[0]
-    const fileBuffer = await firstFile.arrayBuffer()
-    const uint8Array = new Uint8Array(fileBuffer)
+    const pdf = await PDFDocument.create();
 
-    // Upload to Supabase Storage (in real app, this would be the generated PDF)
-    const { data: uploadData, error: uploadError } = await supabaseClient.storage
-      .from('pdf-files')
-      .upload(pdfFileName, uint8Array, {
-        contentType: 'application/pdf',
-        cacheControl: '3600'
-      })
+    for (const f of files) {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      let img;
+      if (f.type === "image/png") img = await pdf.embedPng(bytes);
+      else if (f.type === "image/jpeg" || f.type === "image/jpg") img = await pdf.embedJpg(bytes);
+      else {
+        return new Response(JSON.stringify({ error: `Unsupported: ${f.type}` }), {
+          status: 400, headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      const page = pdf.addPage([img.width, img.height]);
+      page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+    }
+
+    const pdfBytes = await pdf.save(); // ✅ real PDF bytes (Uint8Array)
+    const fileName = `converted_${Date.now()}.pdf`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("pdf-files")
+      .upload(fileName, pdfBytes, {
+        contentType: "application/pdf",
+        cacheControl: "3600",
+        upsert: false,
+      });
 
     if (uploadError) {
-      return new Response(
-        JSON.stringify({ error: 'Failed to create PDF' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      console.error(uploadError);
+      return new Response(JSON.stringify({ error: "Upload failed" }), {
+        status: 500, headers: { ...cors, "Content-Type": "application/json" },
+      });
     }
 
-    const { data: urlData } = supabaseClient.storage
-      .from('pdf-files')
-      .getPublicUrl(pdfFileName)
+    // Signed URL works whether bucket is public or private
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("pdf-files").createSignedUrl(fileName, 60 * 60);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        downloadUrl: urlData.publicUrl,
-        imagesProcessed: files.length,
-        pdfSize: files.reduce((acc, file) => acc + file.size, 0)
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    if (signErr) {
+      console.error(signErr);
+      return new Response(JSON.stringify({ error: "Sign URL failed" }), {
+        status: 500, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
 
-  } catch (error) {
-    console.error('Error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({
+      success: true,
+      fileName,
+      downloadUrl: signed.signedUrl,
+      pages: files.length,
+    }), { status: 200, headers: { ...cors, "Content-Type": "application/json" }});
+  } catch (e) {
+    console.error(e);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500, headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
-})
+});
